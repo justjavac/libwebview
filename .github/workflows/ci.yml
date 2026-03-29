@@ -16,23 +16,29 @@ jobs:
           - name: linux-x64
             os: ubuntu-24.04
             artifact_name: libwebview-linux-x64
+            generator: Ninja
             osx_architectures: ""
             macos_deployment_target: ""
             setup_linux: true
+            setup_msvc: false
             link_notes: "pkg-config modules: gtk+-3.0 webkit2gtk-4.1; extra library: dl"
           - name: windows-x64
-            os: windows-latest
+            os: windows-2025
             artifact_name: libwebview-windows-x64
+            generator: Ninja
             osx_architectures: ""
             macos_deployment_target: ""
             setup_linux: false
+            setup_msvc: true
             link_notes: "System libraries: advapi32 ole32 shell32 shlwapi user32 version"
           - name: macos-universal
             os: macos-latest
             artifact_name: libwebview-macos-universal
+            generator: Ninja
             osx_architectures: "x86_64;arm64"
             macos_deployment_target: "11.0"
             setup_linux: false
+            setup_msvc: false
             link_notes: "Frameworks/libraries: -framework WebKit -ldl"
 
     steps:
@@ -54,13 +60,19 @@ jobs:
           pkg-config --modversion gtk+-3.0
           pkg-config --modversion webkit2gtk-4.1
 
+      - name: Setup MSVC
+        if: ${{ matrix.setup_msvc }}
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
       - name: Configure
         shell: pwsh
         run: |
           $cmakeArgs = @(
             "-S", ".",
             "-B", "build",
-            "-G", "Ninja",
+            "-G", "${{ matrix.generator }}",
             "-D", "CMAKE_BUILD_TYPE=Release"
           )
 
