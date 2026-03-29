@@ -1,6 +1,10 @@
 # CMake build directories and cache
 build/
+build-local/
 bin/
+lib/
+stage/
+stage-local/
 CMakeUserPresets.json
 *.cmake
 
