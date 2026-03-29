@@ -1,0 +1,102 @@
+name: build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-x64
+            os: ubuntu-24.04
+            artifact_name: libwebview-linux-x64
+            osx_architectures: ""
+            macos_deployment_target: ""
+            setup_linux: true
+            link_notes: "pkg-config modules: gtk+-3.0 webkit2gtk-4.1; extra library: dl"
+          - name: windows-x64
+            os: windows-latest
+            artifact_name: libwebview-windows-x64
+            osx_architectures: ""
+            macos_deployment_target: ""
+            setup_linux: false
+            link_notes: "System libraries: advapi32 ole32 shell32 shlwapi user32 version"
+          - name: macos-universal
+            os: macos-latest
+            artifact_name: libwebview-macos-universal
+            osx_architectures: "x86_64;arm64"
+            macos_deployment_target: "11.0"
+            setup_linux: false
+            link_notes: "Frameworks/libraries: -framework WebKit -ldl"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show tool versions
+        shell: pwsh
+        run: |
+          cmake --version
+          ninja --version
+
+      - name: Install Linux dependencies
+        if: ${{ matrix.setup_linux }}
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev
+          pkg-config --modversion gtk+-3.0
+          pkg-config --modversion webkit2gtk-4.1
+
+      - name: Configure
+        shell: pwsh
+        run: |
+          $cmakeArgs = @(
+            "-S", ".",
+            "-B", "build",
+            "-G", "Ninja",
+            "-D", "CMAKE_BUILD_TYPE=Release"
+          )
+
+          if ("${{ matrix.osx_architectures }}") {
+            $cmakeArgs += @("-D", "CMAKE_OSX_ARCHITECTURES=${{ matrix.osx_architectures }}")
+          }
+
+          if ("${{ matrix.macos_deployment_target }}") {
+            $cmakeArgs += @("-D", "CMAKE_OSX_DEPLOYMENT_TARGET=${{ matrix.macos_deployment_target }}")
+          }
+
+          cmake @cmakeArgs
+
+      - name: Build
+        shell: pwsh
+        run: cmake --build build --config Release
+
+      - name: Install
+        shell: pwsh
+        run: cmake --install build --config Release --prefix stage
+
+      - name: Write artifact metadata
+        shell: pwsh
+        run: |
+          @"
+          target=${{ matrix.name }}
+          webview_git_tag=cbbdee44afff22867de9fd88a9fc8350d9bdd399
+          library_dir=lib
+          include_dir=include
+          ${{ matrix.link_notes }}
+          "@ | Set-Content -Path stage/BUILD_INFO.txt
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: stage
+          if-no-files-found: error
+          retention-days: 30
