@@ -4,11 +4,22 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+    inputs:
+      library_type:
+        description: Library type to build
+        required: true
+        default: static
+        type: choice
+        options:
+          - static
+          - shared
 
 jobs:
   build:
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
+    env:
+      LIBWEBVIEW_LIBRARY_TYPE: ${{ inputs.library_type || 'static' }}
     strategy:
       fail-fast: false
       matrix:
@@ -76,6 +87,18 @@ jobs:
             "-D", "CMAKE_BUILD_TYPE=Release"
           )
 
+          if ($env:LIBWEBVIEW_LIBRARY_TYPE -eq "shared") {
+            $cmakeArgs += @(
+              "-D", "LIBWEBVIEW_BUILD_SHARED_LIBRARY=ON",
+              "-D", "LIBWEBVIEW_BUILD_STATIC_LIBRARY=OFF"
+            )
+          } else {
+            $cmakeArgs += @(
+              "-D", "LIBWEBVIEW_BUILD_SHARED_LIBRARY=OFF",
+              "-D", "LIBWEBVIEW_BUILD_STATIC_LIBRARY=ON"
+            )
+          }
+
           if ("${{ matrix.osx_architectures }}") {
             $cmakeArgs += @("-D", "CMAKE_OSX_ARCHITECTURES=${{ matrix.osx_architectures }}")
           }
@@ -99,8 +122,10 @@ jobs:
         run: |
           @"
           target=${{ matrix.name }}
+          library_type=$env:LIBWEBVIEW_LIBRARY_TYPE
           webview_git_tag=cbbdee44afff22867de9fd88a9fc8350d9bdd399
           library_dir=lib
+          runtime_dir=bin
           include_dir=include
           ${{ matrix.link_notes }}
           "@ | Set-Content -Path stage/BUILD_INFO.txt
@@ -108,7 +133,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact_name }}
+          name: libwebview-${{ env.LIBWEBVIEW_LIBRARY_TYPE }}-${{ matrix.name }}
           path: stage
           if-no-files-found: error
           retention-days: 30
