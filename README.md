@@ -1,6 +1,6 @@
 # libwebview
 
-Static `webview` build outputs for MoonBit.
+Static and shared `webview` build outputs for MoonBit.
 
 ## Local build
 
@@ -12,12 +12,24 @@ cmake --build build --config Release
 cmake --install build --config Release --prefix stage
 ```
 
+Build the shared library by toggling the wrapper options:
+
+```powershell
+cmake -S . -B build-shared -G Ninja -D CMAKE_BUILD_TYPE=Release `
+  -D LIBWEBVIEW_BUILD_SHARED_LIBRARY=ON `
+  -D LIBWEBVIEW_BUILD_STATIC_LIBRARY=OFF
+cmake --build build-shared --config Release
+cmake --install build-shared --config Release --prefix stage-shared
+```
+
 macOS:
 
 ```bash
 cmake -S . -B build -G Ninja -D CMAKE_BUILD_TYPE=Release \
   -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
-  -D CMAKE_OSX_DEPLOYMENT_TARGET=11.0
+  -D CMAKE_OSX_DEPLOYMENT_TARGET=11.0 \
+  -D LIBWEBVIEW_BUILD_SHARED_LIBRARY=ON \
+  -D LIBWEBVIEW_BUILD_STATIC_LIBRARY=OFF
 cmake --build build --config Release
 cmake --install build --config Release --prefix stage
 ```
@@ -41,11 +53,14 @@ It runs on:
 
 Uploaded artifacts:
 
-- `libwebview-linux-x64`
-- `libwebview-windows-x64`
-- `libwebview-macos-universal`
+- `libwebview-static-linux-x64`
+- `libwebview-static-windows-x64`
+- `libwebview-static-macos-universal`
+- `libwebview-shared-linux-x64`
+- `libwebview-shared-windows-x64`
+- `libwebview-shared-macos-universal`
 
-Each artifact contains headers, the static library, CMake package files, and a `BUILD_INFO.txt` file with the pinned upstream revision and link notes.
+Each artifact contains headers, library/runtime outputs, CMake package files, and a `BUILD_INFO.txt` file with the pinned upstream revision and link notes.
 
 ## Link requirements
 
